@@ -1,8 +1,8 @@
 # Lego Poker Robot
 
 ## 🚀 Getting started
-- `git clone <repo>`
-- `cd <repo>`
+- `git clone https://github.com/thomsen85/LegoPokerDealer`
+- `cd LegoPokerDealer`
 - `pip install virtualenv` (if you don't already have virtualenv installed)
 
 - `virtualenv venv` venv to create your new environment (called 'venv' here)
