@@ -15,8 +15,11 @@ def main():
     while True:
         ret, img = cap.read()
         bounding_boxes, ids = aruco_finder.find_aruco_markers(img)
-
-        player_finder.update()
+        
+        if ids is None:
+            pass
+        else:
+            player_finder.update(bounding_boxes, ids.flatten())
 
         cv2.imshow("Video", img)
         cv2.waitKey(1)
