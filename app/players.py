@@ -1,4 +1,5 @@
 import time
+import numpy as np
 
 
 class PlayerFinder:
@@ -33,7 +34,8 @@ class PlayerFinder:
         if len(self.players) != 0:
             for player in list(self.players):
                 if player in ids:
-                    self.players[player].last_seen = time.time()
+                    index = np.where(ids==player)[0][0]
+                    self.players[player].update(bounding_boxes[index], time.time())
 
                 elif time.time() - self.players[player].last_seen >= self.TIMEOUT_TIME:
                     self.players.pop(player)
@@ -51,4 +53,11 @@ class Player:
 
         self.dealt_cards = False
         self.is_dealer = id == 0
+
+        self.turn = 0
+
+    def update(self, bounding_box, last_seen):
+        self.bounding_box = bounding_box
+        self.last_seen = last_seen
+
 
