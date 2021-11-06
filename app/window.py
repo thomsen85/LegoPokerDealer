@@ -37,14 +37,18 @@ def main():
                 player_finder.update(bounding_boxes, ids.flatten())
 
             controller.update_player_list(player_finder.players)
-            controller.update_player_turns()
             controller.draw(img)
+
+            if cv2.waitKey(1) & 0xFF == ord('p'):
+                controller.update_player_turns()
+
             pass
 
         cv2.imshow("Video", img)
         if cv2.waitKey(1) & 0xFF == ord(' '):
             login_stage = False
             play_stage = True
+            player_finder.joining_stage = False
 
 
 

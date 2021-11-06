@@ -16,5 +16,4 @@ class ArucoFinder:
 
         if self.draw:
             aruco.drawDetectedMarkers(img, bounding_boxes, ids)
-
         return bounding_boxes, ids

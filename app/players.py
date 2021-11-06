@@ -6,13 +6,14 @@ class PlayerFinder:
     TIMEOUT_TIME = 10
     JOINING_TIME = 3
 
-    def __init__(self):
+    def __init__(self, joining_stage=True):
         self.players = {}
         self.joining = {}
+        self.joining_stage = joining_stage
 
     def update(self, bounding_boxes, ids):
         '''Register new players into joining list'''
-        if len(ids) != 0:
+        if len(ids) != 0 and self.joining_stage:
             for id, bounding_box in zip(ids, bounding_boxes):
                 if not (id in self.players or id in self.joining):
                     print(f"{id} is a new player, waiting to join")
@@ -21,7 +22,7 @@ class PlayerFinder:
         '''Transfering to player list'''
         if len(self.joining) != 0:
             for player in list(self.joining):
-                if not id in ids:
+                if not player in ids:
                     self.joining.pop(player)
                     print(f"{player} was removed from the joining queue.")
 
