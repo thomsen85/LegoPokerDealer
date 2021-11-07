@@ -19,7 +19,7 @@ def cases(arg):
         controller()
 
     else:
-        print(str(arg) + " is an unvalid argument.")
+        print(str(arg) + " is an unvalid argument. See python manage.py help for options")
 
 
 

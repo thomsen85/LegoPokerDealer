@@ -1,11 +1,11 @@
 import cv2
-from math import sqrt
-
-from app.players import Player
 import math
+import socket
 
+from .players import Player
 
-
+HOST = '169.254.9.225'  # local host
+PORT = 8070
 
 class Calculations:
     @staticmethod
@@ -38,7 +38,7 @@ class Calculations:
         for id in players:
 
             center = Calculations.bounding_box_to_point(players[id].bounding_box)
-            dist_from_tl = sqrt(center[0]**2 + center[1]**2)
+            dist_from_tl = math.sqrt(center[0]**2 + center[1]**2)
 
             if dist_from_tl < lowest_dist:
                 bottom_left_most = id
@@ -89,18 +89,30 @@ class Calculations:
         x = top_x_sum/2 - bottom_x_sum/2
         y = top_y_sum/2 - bottom_y_sum/2
 
-        length = sqrt(x**2 +y**2)
+        length = math.sqrt(x**2 +y**2)
 
         return ((x/length) * length_multiplier, (y/length) * length_multiplier)
+
+    @staticmethod
+    def get_dealer_angle_offset_to_player(dealer, player):
+        player_x, player_y  = Calculations.bounding_box_to_front_point(player.bounding_box)
+        dealer_x, dealer_y = Calculations.bounding_box_to_point(dealer.bounding_box)
+        dealer_direction = Calculations.bounding_box_to_vector(dealer.bounding_box)
+        dealer_rads = math.atan2(dealer_direction[0], dealer_direction[1])
 
 
 
 class Controller:
     def __init__(self):
         self.players = {}
-        self.dealer = None
         self.player_turns = []
         self.player_turn = 0
+
+        self.dealer = None
+        self.dealer_speed = 0
+        self.dealer_turn_rate = 0
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def draw(self, img):
         for id in self.players:
@@ -126,6 +138,17 @@ class Controller:
     def update_player_turns(self):
         first_player = Calculations.get_top_left_player(self.players)
         self.player_turns = Calculations.get_clockwise_turns(self.players, first_player)
+
+    def connect_to_dealer(self):
+        print("Paring...")
+        self.socket.bind((HOST, PORT))
+        self.socket.listen()
+        self.conn, addr = self.socket.accept()
+        print('Connected by', addr)
+    
+    def close(self):
+        self.socket.close()
+
     
     
 
