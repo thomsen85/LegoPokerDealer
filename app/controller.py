@@ -4,7 +4,7 @@ import socket
 
 from .players import Player
 
-HOST = '169.254.9.225'  # local host
+HOST = 'localhost'  # local host
 PORT = 8070
 
 class Calculations:
@@ -97,22 +97,46 @@ class Calculations:
     def get_dealer_angle_offset_to_player(dealer, player):
         player_x, player_y  = Calculations.bounding_box_to_front_point(player.bounding_box)
         dealer_x, dealer_y = Calculations.bounding_box_to_point(dealer.bounding_box)
-        dealer_direction = Calculations.bounding_box_to_vector(dealer.bounding_box)
-        dealer_rads = math.atan2(dealer_direction[0], dealer_direction[1])
-
-
+        
+        player_to_dealer_vector = (player_x - dealer_x, player_y - dealer_y) 
+        player_to_dealer_rads = math.atan2(player_to_dealer_vector[0], player_to_dealer_vector[1]) + math.pi
+        
+        dealer_vector = Calculations.bounding_box_to_vector(dealer.bounding_box)
+        dealer_rads = math.atan2(dealer_vector[0], dealer_vector[1]) 
+        
+        return (player_to_dealer_rads - dealer_rads)
+    
+    @staticmethod
+    def get_distance_between_dealer_and_player(dealer, player):
+        player_x, player_y  = Calculations.bounding_box_to_front_point(player.bounding_box)
+        dealer_x, dealer_y = Calculations.bounding_box_to_point(dealer.bounding_box)
+        
+        return math.sqrt((player_x - dealer_x)**2 + (player_y - dealer_y)**2)
+        
+        
+        
 
 class Controller:
     def __init__(self):
         self.players = {}
         self.player_turns = []
         self.player_turn = 0
-
+        
+        '''Dealer stages'''
+        self.start = False
+        self.aligning = False
+        self.drive_towards = False
+        
+        self.aligning_epsilon = 0.1
+        self.proportional = 10
+        
         self.dealer = None
         self.dealer_speed = 0
         self.dealer_turn_rate = 0
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind((HOST, PORT))
+        self.conn = None
 
     def draw(self, img):
         for id in self.players:
@@ -127,24 +151,59 @@ class Controller:
         dealer_pos = Calculations.bounding_box_to_point(self.dealer.bounding_box)
         dealer_vec = Calculations.bounding_box_to_vector(self.dealer.bounding_box, 100)
         cv2.arrowedLine(img, dealer_pos, (dealer_pos[0] + int(dealer_vec[0]), dealer_pos[1] + int(dealer_vec[1])), (0, 0, 255), 5)
+        
+    '''Players'''
+    def update_player_turns(self):
+        first_player = Calculations.get_top_left_player(self.players)
+        self.player_turns = Calculations.get_clockwise_turns(self.players, first_player)
 
-    def update_player_list(self, players):
+
+    def update_players(self, players):
         for id in players:
             if players[id].is_dealer:
                 self.dealer = players[id]
             else:
                 self.players[id] = players[id]
 
-    def update_player_turns(self):
-        first_player = Calculations.get_top_left_player(self.players)
-        self.player_turns = Calculations.get_clockwise_turns(self.players, first_player)
-
+    '''Dealer'''
     def connect_to_dealer(self):
         print("Paring...")
-        self.socket.bind((HOST, PORT))
-        self.socket.listen()
-        self.conn, addr = self.socket.accept()
-        print('Connected by', addr)
+        try:
+            self.socket.listen()
+            self.conn, addr = self.socket.accept()
+            print('Connected by', addr)
+            return True
+        except socket.error:
+            print("Couldn't connect with dealer")
+            return False
+        
+    def start_new_game(self):
+        self.start = True
+        self.aligning = True
+        self.update_player_turns()
+        self.player_turn = 0
+        
+    def update_data_to_dealer(self):
+        if self.start:
+            next_player = self.players[self.player_turns[self.player_turn]]
+            diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player)
+            distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player)
+            
+            if self.aligning:
+                if abs(diff_angle) <= self.aligning_epsilon:
+                    self.aligning = False
+                else:
+                    self.dealer_turn_rate = diff_angle * self.proportional
+                    return f"Aligning to Player {self.player_turns[self.player_turn]}, degrees left: {round(diff_angle * (180/math.pi))}"
+                
+    
+
+    def send_data_to_dealer(self):
+        data = str(self.dealer_speed) + "," + str(self.dealer_turn_rate)
+        try:
+            self.conn.sendall(data.encode())
+        except socket.error:
+            return False
     
     def close(self):
         self.socket.close()

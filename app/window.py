@@ -1,7 +1,11 @@
+from tkinter.constants import W
+from typing import Text
+from arcade.key import R
 import cv2
 import tkinter as tk
 import tkinter.font as font
 import tkinter.ttk as ttk
+import tkinter.messagebox as messagebox
 import PIL.Image, PIL.ImageTk
 
 from .aruco import ArucoFinder
@@ -14,12 +18,15 @@ class Window:
     DARK = "#1c1c1c"
 
     def __init__(self, window, window_title):
+        '''Window Configs'''
         self.window = window
         self.window.title(window_title)
+        self.window.resizable(False, False)
+        self.window.bind("<KeyPress>", self.on_key_press)
+        self.window.bind("<KeyRelease>", self.on_key_release)
+        
 
         self.defaultFont = font.nametofont("TkDefaultFont")
-  
-        
         self.defaultFont.configure(family="Montserrat",
                                    size=18,
                                    weight=font.NORMAL)
@@ -34,16 +41,16 @@ class Window:
         self.login_stage = True
         self.play_stage = False
 
-        '''Window elements'''
+        '''Window components'''
         self.padding = 20
 
-        self.canvas_size = (1152, 648)
+        self.canvas_size = (960,540)
         self.canvas = tk.Canvas(window, bd=0, width = self.canvas_size[0], height = self.canvas_size[1], relief=tk.RIDGE)
         self.canvas.grid(row=0, column=0, columnspan=4, padx=self.padding, pady=(self.padding, self.padding/2))
 
         self.listbox_label = tk.Label(window, text="Players:")
         self.listbox_label.grid(row=1, column=0, sticky="nsew")
-        self.listbox = tk.Listbox(window, font=self.defaultFont)
+        self.listbox = tk.Listbox(window, font=self.defaultFont, width=10)
         self.listbox.grid(row=2, column=0, sticky="nsew", padx=(self.padding, self.padding), pady=(0,self.padding))
         self.listbox.config(highlightcolor=self.GRAY)
 
@@ -75,23 +82,92 @@ class Window:
 
         self.dealer_task = tk.StringVar()
         self.dealer_task.set("Waiting for connection...")
-        self.dealer_task_status_label = tk.Label(self.dealer_frame, textvariable=self.dealer_task, border=0, bg=self.DARK)
+        self.dealer_task_status_label = tk.Label(self.dealer_frame, textvariable=self.dealer_task, border=0, bg=self.DARK,
+                                                 justify=tk.CENTER, wraplength=250)
         self.dealer_task_status_label.pack(fill="x", anchor="n", pady=(0, self.padding))
 
+        self.button_frame = tk.Frame(window)
+        self.button_frame.grid(row=2, column=3, sticky="nsew", padx=(0,self.padding), pady=(0, self.padding))
+        self.button_frame.grid_columnconfigure(0, weight=1)
 
-        self.button = tk.Button(window, text="Start Game", bd=0, command=self.start_play_stage)
-        self.button.grid(row=2, column=3)
+        self.pair_button = tk.Button(self.button_frame, text="Pair with dealer", bd=0, command=self.connect_to_dealer)
+        self.pair_button.grid(row=0, column=0, sticky="ew", padx=self.padding)
 
-        self.window.resizable(False, False)
+        self.start_button = tk.Button(self.button_frame, text="Start Game", bd=0, command=self.start_play_stage, bg="green")
+        self.start_button.grid(row=1, column=0, sticky="ew", padx=self.padding, pady= self.padding)
+
 
         self.delay = 15
         self.update()
         self.window.mainloop()
+        
+    def update(self):
+        success, frame = self.camera.get_frame()
+        bounding_boxes, ids = self.aruco_finder.find_aruco_markers(frame)
 
+        ### LOGIN STAGE ###
+        if self.login_stage:
+            self.update_players(ids, bounding_boxes)
+                
+        ### PLAY STAGE ###
+        elif self.play_stage:
+            self.update_players(ids, bounding_boxes)
+            self.controller.update_players(self.player_finder.players)
+            self.controller.draw(frame)
+    
+            task = self.controller.update_data_to_dealer()
+            self.dealer_task.set(task)
+            
+            '''
+            if not self.controller.send_data_to_dealer():
+                self.dealer_cam_status.set("Offline")
+                self.dealer_cam_status_color = "red"
+                self.dealer_cam_status_label.config(bg=self.dealer_cam_status_color)
+            '''
+            
+        ### Draw to screen ###
+        if success:
+            self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), self.canvas_size)))
+            self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
+        
+        
+        self.update_listbox()
+        self.update_dealer()
+        self.window.after(self.delay, self.update)
+
+    def update_players(self,ids, bounding_boxes):
+        if ids is None:
+            self.player_finder.update([], [])
+        else:
+            self.player_finder.update(bounding_boxes, ids.flatten())
+            
+    '''Stages'''
     def start_play_stage(self):
-        self.login_stage = False
-        self.play_stage = True
-        self.player_finder.joining_stage = False
+        if self.dealer_cam_status_color == "green": # and self.dealer_socket_status == "Online"
+            self.login_stage = False
+            self.play_stage = True
+            self.player_finder.joining_stage = False
+            
+            self.controller.update_players(self.player_finder.players)
+            self.controller.start_new_game()
+        else:
+            messagebox.showerror(title="Connection Error", message="Make sure the dealer is connected before you start the game")
+
+    '''Controller'''
+    def connect_to_dealer(self):
+        top = tk.Toplevel()
+        top.title('Connecting')
+        tk.Message(top, text="Waiting for dealer", padx=20, pady=20).pack()
+        if self.controller.connect_to_dealer():
+            top.destroy()
+            self.dealer_socket_status.set("Online")
+            self.dealer_socket_status_color = "green"
+        else:
+            top.destroy()
+            self.dealer_socket_status.set("Offline")
+            self.dealer_socket_status_color = "red"
+        
+        self.dealer_socket_status_label.config(bg=self.dealer_socket_status_color)
 
     def update_dealer(self):
         if 0 in self.player_finder.joining:
@@ -108,6 +184,7 @@ class Window:
         
         self.dealer_cam_status_label.config(bg=self.dealer_cam_status_color)
 
+    '''Window components'''
     def update_listbox(self):
         players_joining = dict(self.player_finder.joining)
         players = dict(self.player_finder.players)
@@ -118,7 +195,7 @@ class Window:
         elif 0 in players:
             players.pop(0)
 
-        if self.listbox.size() > 1:
+        if self.listbox.size() > 0:
             self.listbox.delete(0, self.listbox.size())
 
         for index, player in enumerate(players_joining):
@@ -138,37 +215,28 @@ class Window:
 
             self.listbox.itemconfig(index, {'bg':'green'})
 
-
-
-    def update(self):
-
-        ret, frame = self.camera.get_frame()
-
-        bounding_boxes, ids = self.aruco_finder.find_aruco_markers(frame)
-
-        if self.login_stage:
-            if ids is None:
-                self.player_finder.update([], [])
-            else:
-                self.player_finder.update(bounding_boxes, ids.flatten())
-                
-
-        elif self.play_stage:
-            if ids is None:
-                self.player_finder.update([], [])
-            else:
-                self.player_finder.update(bounding_boxes, ids.flatten())
-
-            self.controller.update_player_list(self.player_finder.players)
-            self.controller.draw(frame)
+    '''Window Key Controlls'''
+    def on_key_press(self, event):
+        key_pressed = event.keysym
         
-        if ret:
-            self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), self.canvas_size)))
-            self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
+        if key_pressed == "Right":
+            self.controller.dealer_turn_rate = 100
+        elif key_pressed == "Left":
+            self.controller.dealer_turn_rate = -100
+            
+        if key_pressed == "Up":
+            self.controller.dealer_speed = 100
+        elif key_pressed == "Down":
+            self.controller.dealer_speed = 100
+            
+    def on_key_release(self, event):
+        key_pressed = event.keysym
+        
+        if key_pressed == "Right" or key_pressed == "Left":
+            self.controller.dealer_turn_rate = 0
 
-        self.update_listbox()
-        self.update_dealer()
-        self.window.after(self.delay, self.update)
+        if key_pressed == "Up" or key_pressed == "Down":
+            self.controller.dealer_speed = 0
         
 
 
@@ -189,57 +257,6 @@ class Webcamera:
     def __del__(self):
         if self.cap.isOpened():
             self.cap.release()
-
-
-
-
-'''
-def main():
-    cap = cv2.VideoCapture(0)
-    aruco_finder = ArucoFinder()
-    player_finder = PlayerFinder()
-    controller = Controller()
-    
-    login_stage = True
-    play_stage = False
-    
-    while True:
-        ret, img = cap.read()
-        bounding_boxes, ids = aruco_finder.find_aruco_markers(img)
-
-
-        if login_stage:
-            if ids is None:
-                pass
-            else:
-                player_finder.update(bounding_boxes, ids.flatten())
-                
-            cv2.putText(img, "Joining Stage", (10,img.shape[0]-10), cv2.FONT_ITALIC, 2, (0,0,0),5) 
-
-        elif play_stage:
-            if ids is None:
-                pass
-            else:
-                player_finder.update(bounding_boxes, ids.flatten())
-
-            controller.update_player_list(player_finder.players)
-            controller.draw(img)
-
-            if cv2.waitKey(1) & 0xFF == ord('p'):
-                controller.update_player_turns()
-
-            pass
-
-        cv2.imshow("Video", img)
-        if cv2.waitKey(1) & 0xFF == ord(' '):
-            login_stage = False
-            play_stage = True
-            player_finder.joining_stage = False
-        
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            controller.close()
-            break
-'''
 
 def main():
     Window(tk.Tk(), "Poker Robot V1.0")

@@ -1,12 +1,13 @@
 from app.window import main
-from app.bluetooth import bluetooth
-from app.manual_controller import controller
+#from app.bluetooth import bluetooth
+#from app.manual_controller import controller
 import sys
 
 def cases(arg):
     if arg == "bluetooth":
-        print("Testing bluetooth")
-        bluetooth()
+        #print("Testing bluetooth")
+        #bluetooth()
+        pass
     elif arg == "start":
         main()
     elif arg == "help":
@@ -16,7 +17,8 @@ def cases(arg):
         print("\t- help")
 
     elif arg=="controller":
-        controller()
+        #controller()
+        pass
 
     else:
         print(str(arg) + " is an unvalid argument. See python manage.py help for options")
