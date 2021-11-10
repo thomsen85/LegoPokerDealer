@@ -1,12 +1,10 @@
-from tkinter.constants import W
-from typing import Text
-from arcade.key import R
 import cv2
+import PIL.Image, PIL.ImageTk
+
 import tkinter as tk
 import tkinter.font as font
-import tkinter.ttk as ttk
 import tkinter.messagebox as messagebox
-import PIL.Image, PIL.ImageTk
+import time
 
 from .aruco import ArucoFinder
 from .players import PlayerFinder
@@ -98,7 +96,7 @@ class Window:
         self.start_button.grid(row=1, column=0, sticky="ew", padx=self.padding, pady= self.padding)
 
 
-        self.delay = 15
+        self.delay = 10
         self.update()
         self.window.mainloop()
         
@@ -142,7 +140,7 @@ class Window:
             
     '''Stages'''
     def start_play_stage(self):
-        if self.dealer_cam_status_color == "green": # and self.dealer_socket_status == "Online"
+        if self.dealer_cam_status_color == "green" and self.dealer_socket_status_color == "green":
             self.login_stage = False
             self.play_stage = True
             self.player_finder.joining_stage = False
@@ -157,6 +155,7 @@ class Window:
         top = tk.Toplevel()
         top.title('Connecting')
         tk.Message(top, text="Waiting for dealer", padx=20, pady=20).pack()
+
         if self.controller.connect_to_dealer():
             top.destroy()
             self.dealer_socket_status.set("Online")

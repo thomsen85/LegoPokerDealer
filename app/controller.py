@@ -272,6 +272,7 @@ class Controller:
                     return f"Dealing cards to Player {self.player_turns[self.player_turn]}, finished in: {round(self.deal_time - (time() - self.started_dealing), 1)}"
                 
             elif self.deal_middle_cards:
+                pass
                 
 
     def send_data_to_dealer(self):
