@@ -22,6 +22,7 @@ class Window:
         self.window = window
         self.window.title(window_title)
         self.window.resizable(False, False)
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.window.bind("<KeyPress>", self.on_key_press)
         self.window.bind("<KeyRelease>", self.on_key_release)
         
@@ -118,12 +119,10 @@ class Window:
             task = self.controller.update_data_to_dealer()
             self.dealer_task.set(task)
             
-            '''
             if not self.controller.send_data_to_dealer():
                 self.dealer_cam_status.set("Offline")
                 self.dealer_cam_status_color = "red"
                 self.dealer_cam_status_label.config(bg=self.dealer_cam_status_color)
-            '''
             
         ### Draw to screen ###
         if success:
@@ -237,9 +236,11 @@ class Window:
 
         if key_pressed == "Up" or key_pressed == "Down":
             self.controller.dealer_speed = 0
+            
+    def on_closing(self):
+        self.controller.socket.close()
+        self.window.destroy()
         
-
-
 
 class Webcamera:
     def __init__(self):
