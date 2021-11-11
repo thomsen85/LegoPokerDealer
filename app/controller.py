@@ -5,7 +5,7 @@ from time import time
 
 from .players import Player
 
-HOST = 'localhost'  # local host
+HOST = '169.254.14.18'  # local host
 PORT = 8070
 
 class Calculations:
@@ -105,13 +105,17 @@ class Calculations:
         player_x, player_y  = Calculations.bounding_box_to_front_point(player.bounding_box, player_front_shift)
         dealer_x, dealer_y = Calculations.bounding_box_to_point(dealer.bounding_box)
         
-        player_to_dealer_vector = (player_x - dealer_x, dealer_y - player_y) 
-        player_to_dealer_rads = math.atan2(player_to_dealer_vector[0], player_to_dealer_vector[1])
-        
+        player_to_dealer_vector = (player_x - dealer_x, player_y - dealer_y) 
         dealer_vector = Calculations.bounding_box_to_vector(dealer.bounding_box)
-        dealer_rads = math.atan2(dealer_vector[0], -dealer_vector[1])
         
-        return (player_to_dealer_rads - dealer_rads)
+        angle = math.atan2(player_to_dealer_vector[1], player_to_dealer_vector[0]) - math.atan2(dealer_vector[1], dealer_vector[0])
+        
+        if angle > math.pi:
+            angle -= 2 * math.pi
+        elif angle <= -math.pi:
+            angle += 2 * math.pi
+            
+        return angle
     
     @staticmethod
     def get_distance_between_dealer_and_player(dealer, player, player_front_shift=1):
@@ -119,7 +123,7 @@ class Calculations:
         dealer_x, dealer_y = Calculations.bounding_box_to_point(dealer.bounding_box)
         
         return math.sqrt((player_x - dealer_x)**2 + (player_y - dealer_y)**2)
-        
+    
         
         
 
@@ -148,7 +152,7 @@ class Controller:
         self.dealer_turn_rate = 0
         self.dealing = False
         self.normal_angle = -math.pi/2
-        self.deal_time = 7
+        self.deal_time = 6
         self.started_dealing = None
         
         ### Dealer stages ##
@@ -159,6 +163,14 @@ class Controller:
         self.deal_cards = False
         self.deal_middle_cards = False
         self.finished = False
+        
+        ### Middle cards ###
+        self.middle_card_spacing = 50
+        self.middle_card_x = 1920//2
+        self.middle_card_y = 1080//2
+        self.update_middle_cards = False
+        self.middle_card_points = [(self.middle_card_x + (i*self.middle_card_spacing), self.middle_card_y)for i in range(-2, 3)]
+        self.middle_card_current_point = -2
         
         ### Socket Connection###
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -176,12 +188,16 @@ class Controller:
             x_size, y_size = cv2.getTextSize(str(id), cv2.FONT_ITALIC, 1, 2)[0]
             text_pos = (circe_pos[0] - x_size//2, circe_pos[1] + y_size//2)
             cv2.putText(img, str(id), text_pos, cv2.FONT_ITALIC, 1, (0,0,0),2) 
+            
+        ### MIDDLE CARDS ###
+        for point in self.middle_card_points:
+            cv2.circle(img, point, 5, (0, 255, 0), -1)
 
-
-        dealer_pos = Calculations.bounding_box_to_point(self.dealer.bounding_box)
-        dealer_vec = Calculations.bounding_box_to_vector(self.dealer.bounding_box, 100)
-        cv2.arrowedLine(img, dealer_pos, (dealer_pos[0] + int(dealer_vec[0]), dealer_pos[1] + int(dealer_vec[1])), (0, 0, 255), 5)
-        
+        if self.start:
+            dealer_pos = Calculations.bounding_box_to_point(self.dealer.bounding_box)
+            dealer_vec = Calculations.bounding_box_to_vector(self.dealer.bounding_box, 100)
+            cv2.arrowedLine(img, dealer_pos, (dealer_pos[0] + int(dealer_vec[0]), dealer_pos[1] + int(dealer_vec[1])), (0, 0, 255), 5)
+            
     '''Players'''
     def update_player_turns(self):
         first_player = Calculations.get_top_left_player(self.players)
@@ -228,7 +244,7 @@ class Controller:
                 else:
                     self.dealer_speed = 0
                     self.dealer_turn_rate = diff_angle * self.proportional_turn
-                    return f"Aligning to Player {self.player_turns[self.player_turn]}, degrees left: {round(diff_angle * (180/math.pi))}"
+                    return f"Aligning to Player {self.player_turns[self.player_turn]}, degrees left: {round((diff_angle) * (180/math.pi))}"
             
             ### Driving stage ###    
             elif self.drive_towards:
@@ -243,15 +259,15 @@ class Controller:
             ### Aligning normally to player stage ###
             elif self.align_normally:
                 diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, -self.deal_area_front_shift)
-                if abs(diff_angle - self.normal_angle) <= self.aligning_epsilon:
+                if abs((diff_angle - self.normal_angle)) <= self.aligning_epsilon:
                     self.align_normally = False
                     self.deal_cards = True
-                    
+    
                     self.started_dealing = time()
                 else:
                     self.dealer_speed = 0
                     self.dealer_turn_rate = (diff_angle - self.normal_angle) * self.proportional_turn
-                    return f"Aligning normaly to Player {self.player_turns[self.player_turn]}, degrees left: {round((diff_angle - self.normal_angle) * (180/math.pi))}"
+                    return f"Aligning normaly to Player {self.player_turns[self.player_turn]}, degrees left: {round(((diff_angle - self.normal_angle)) * (180/math.pi))}"
 
             ### Dealing stage ###
             elif self.deal_cards:
@@ -273,12 +289,23 @@ class Controller:
                 
             elif self.deal_middle_cards:
                 pass
+                '''
+                next_player = {"bounding_box": self.middle_card_points[self.middle_card_current_point]}
+                diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, self.deal_area_front_shift)
+                distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, self.deal_area_front_shift)
+                '''
                 
-
+                
     def send_data_to_dealer(self):
         data = str(int(self.dealer_speed)) + "," + str(int(self.dealer_turn_rate)) + "," + str(int(self.dealing))
         try:
             self.conn.sendall(data.encode())
         except socket.error:
             return False
+        
+    '''Middle cards'''
+    def set_middle_card_pos(self, x, y):
+        self.middle_card_x = int(x)
+        self.middle_card_y = int(y)
+        self.middle_card_points = [(self.middle_card_x + (i*self.middle_card_spacing), self.middle_card_y)for i in range(-2, 3)]
     

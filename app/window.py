@@ -35,6 +35,8 @@ class Window:
         self.aruco_finder = ArucoFinder()
         self.player_finder = PlayerFinder()
         self.controller = Controller()
+        
+        self.deal_flip = False
 
         '''Stages'''
         self.login_stage = True
@@ -46,7 +48,8 @@ class Window:
         self.canvas_size = (960,540)
         self.canvas = tk.Canvas(window, bd=0, width = self.canvas_size[0], height = self.canvas_size[1], relief=tk.RIDGE)
         self.canvas.grid(row=0, column=0, columnspan=4, padx=self.padding, pady=(self.padding, self.padding/2))
-
+        self.canvas.bind("<Button-1>", self.update_middle_card_pos)
+        
         self.listbox_label = tk.Label(window, text="Players:")
         self.listbox_label.grid(row=1, column=0, sticky="nsew")
         self.listbox = tk.Listbox(window, font=self.defaultFont, width=10)
@@ -92,9 +95,17 @@ class Window:
         self.pair_button = tk.Button(self.button_frame, text="Pair with dealer", bd=0, command=self.connect_to_dealer)
         self.pair_button.grid(row=0, column=0, sticky="ew", padx=self.padding)
 
-        self.start_button = tk.Button(self.button_frame, text="Start Game", bd=0, command=self.start_play_stage, bg="green")
-        self.start_button.grid(row=1, column=0, sticky="ew", padx=self.padding, pady= self.padding)
+        self.update_middle_cards_button_text = tk.StringVar()
+        self.update_middle_cards_button_text.set("Update Middle cards\n position")
+        self.update_middle_cards_button = tk.Button(self.button_frame,textvariable=self.update_middle_cards_button_text,
+                                                    bd=0, command=self.update_middle_cards_button_press)
+        self.update_middle_cards_button.grid(row=1, column=0, sticky="ew", padx=self.padding, pady=self.padding)
 
+
+        self.start_button = tk.Button(self.button_frame, text="Start Game", bd=0, command=self.start_play_stage)
+        self.start_button.grid(row=2, column=0, sticky="ew", padx=self.padding, pady= self.padding)
+
+        
 
         self.delay = 10
         self.update()
@@ -112,21 +123,26 @@ class Window:
         elif self.play_stage:
             self.update_players(ids, bounding_boxes)
             self.controller.update_players(self.player_finder.players)
-            self.controller.draw(frame)
     
             task = self.controller.update_data_to_dealer()
             self.dealer_task.set(task)
             
-            if not self.controller.send_data_to_dealer():
-                self.dealer_cam_status.set("Offline")
-                self.dealer_cam_status_color = "red"
-                self.dealer_cam_status_label.config(bg=self.dealer_cam_status_color)
-            
+            if not self.deal_flip:
+                if not self.controller.send_data_to_dealer():
+                    self.dealer_cam_status.set("Offline")
+                    self.dealer_cam_status_color = "red"
+                    self.dealer_cam_status_label.config(bg=self.dealer_cam_status_color)
+                    
+            if self.controller.dealing:
+                self.deal_flip = True
+            else:
+                self.deal_flip = False
+         
         ### Draw to screen ###
+        self.controller.draw(frame)
         if success:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), self.canvas_size)))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
-        
         
         self.update_listbox()
         self.update_dealer()
@@ -181,6 +197,18 @@ class Window:
             self.dealer_cam_status_color = "red"
         
         self.dealer_cam_status_label.config(bg=self.dealer_cam_status_color)
+        
+    def update_middle_cards_button_press(self):
+        self.update_middle_cards = True
+        self.update_middle_cards_button_text.set("Click on video where\n to place")
+        
+    def update_middle_card_pos(self, event):
+        if self.update_middle_cards:
+            scaling =  self.camera.width / self.canvas_size[0] 
+            self.controller.set_middle_card_pos(event.x * scaling, event.y * scaling)
+            self.update_middle_cards = False
+            self.update_middle_cards_button_text.set("Update Middle cards\n position")
+            
 
     '''Window components'''
     def update_listbox(self):
