@@ -100,7 +100,7 @@ class Window:
         self.update_middle_cards_button = tk.Button(self.button_frame,textvariable=self.update_middle_cards_button_text,
                                                     bd=0, command=self.update_middle_cards_button_press)
         self.update_middle_cards_button.grid(row=1, column=0, sticky="ew", padx=self.padding, pady=self.padding)
-
+        self.update_middle_cards = False
 
         self.start_button = tk.Button(self.button_frame, text="Start Game", bd=0, command=self.start_play_stage)
         self.start_button.grid(row=2, column=0, sticky="ew", padx=self.padding, pady= self.padding)
