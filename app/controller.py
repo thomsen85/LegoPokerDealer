@@ -5,7 +5,7 @@ from time import time
 
 from .players import Player
 
-HOST = '169.254.197.187'  # local host
+HOST = '169.254.14.18'  # local host
 PORT = 8070
 
 class Calculations:
@@ -79,7 +79,7 @@ class Calculations:
 
     @staticmethod
     def bounding_box_to_vector(bounding_box, length_multiplier=1):
-        bounding_box = bounding_box[0] # rid useless dimensions
+        bounding_box = bounding_box[0] # rid useless dimensions 
         top_x_sum = 0
         top_y_sum = 0
         bottom_x_sum = 0
@@ -96,7 +96,7 @@ class Calculations:
         x = top_x_sum/2 - bottom_x_sum/2
         y = top_y_sum/2 - bottom_y_sum/2
 
-        length = math.sqrt(x**2 + y**2)
+        length = math.sqrt(x**2 +y**2)
 
         return ((x/length) * length_multiplier, (y/length) * length_multiplier)
 
@@ -124,14 +124,8 @@ class Calculations:
         
         return math.sqrt((player_x - dealer_x)**2 + (player_y - dealer_y)**2)
     
-    @staticmethod
-    def point_to_bounding_box(point, size):
-        tl = (point[0] - size, point[1] - size)
-        tr = (point[0] + size, point[1] - size)
-        bl = (point[0] - size, point[1] + size)
-        br = (point[0] + size, point[1] + size)
-
-        return [tl , tr, bl, br]
+        
+        
 
 class Controller:
     def __init__(self):
@@ -171,7 +165,7 @@ class Controller:
         self.finished = False
         
         ### Middle cards ###
-        self.middle_card_spacing = 80
+        self.middle_card_spacing = 50
         self.middle_card_x = 1920//2
         self.middle_card_y = 1080//2
         self.update_middle_cards = False
@@ -210,7 +204,6 @@ class Controller:
         self.player_turns = Calculations.get_clockwise_turns(self.players, first_player)
 
 
-
     def update_players(self, players):
         for id in players:
             if players[id].is_dealer:
@@ -241,9 +234,9 @@ class Controller:
         
     def update_data_to_dealer(self):
         if self.start:
-            if self.player_turn >= len(self.player_turns) or self.deal_middle_cards:
+            if self.player_turn + 1 >= len(self.player_turns):
                 self.deal_middle_cards = True
-                next_player = Player(self.middle_card_current_point+100, [Calculations.point_to_bounding_box(self.middle_card_points[self.middle_card_current_point], 10)],0)
+                next_player = {"bounding_box": [[self.middle_card_points[self.middle_card_current_point] for _ in range(4)]]}
                 self.middle_card_current_point += 1
                 
                 if self.middle_card_current_point > len(self.middle_card_points):
@@ -253,7 +246,7 @@ class Controller:
                     self.deal_middle_cards = False
             else:
                 next_player = self.players[self.player_turns[self.player_turn]]
-  
+                
             diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, self.deal_area_front_shift)
             distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, self.deal_area_front_shift)
 

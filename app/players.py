@@ -3,7 +3,7 @@ import numpy as np
 
 
 class PlayerFinder:
-    TIMEOUT_TIME = 25
+    TIMEOUT_TIME = 10
     JOINING_TIME = 3
 
     def __init__(self, joining_stage=True):
