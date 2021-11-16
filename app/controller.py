@@ -5,7 +5,7 @@ from time import time
 
 from .players import Player
 
-HOST = '169.254.197.187'  # local host
+HOST = '169.254.31.29'  # local host
 PORT = 8070
 
 class Calculations:
@@ -243,8 +243,9 @@ class Controller:
         if self.start:
             if self.player_turn >= len(self.player_turns) or self.deal_middle_cards:
                 self.deal_middle_cards = True
-                next_player = Player(self.middle_card_current_point+100, [Calculations.point_to_bounding_box(self.middle_card_points[self.middle_card_current_point], 10)],0)
-                self.middle_card_current_point += 1
+                next_player = Player(self.middle_card_current_point+100, [Calculations.point_to_bounding_box(self.middle_card_points[self.middle_card_current_point], -10)],0)
+                diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, 0)
+                distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, 0)
                 
                 if self.middle_card_current_point > len(self.middle_card_points):
                     self.middle_card_current_point = 0
@@ -254,8 +255,8 @@ class Controller:
             else:
                 next_player = self.players[self.player_turns[self.player_turn]]
   
-            diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, self.deal_area_front_shift)
-            distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, self.deal_area_front_shift)
+                diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, self.deal_area_front_shift)
+                distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, self.deal_area_front_shift)
 
             ### Aligning stage ###
             if self.aligning:
@@ -265,7 +266,10 @@ class Controller:
                 else:
                     self.dealer_speed = 0
                     self.dealer_turn_rate = diff_angle * self.proportional_turn
-                    return f"Aligning to Player {self.player_turns[self.player_turn]}, degrees left: {round((diff_angle) * (180/math.pi))}"
+                    if not self.deal_middle_cards:
+                        return f"Aligning to Player {self.player_turns[self.player_turn]}, degrees left: {round((diff_angle) * (180/math.pi))}"
+                    else:
+                        return f"Aligning to Middle cards, degrees left: {round((diff_angle) * (180/math.pi))} "
             
             ### Driving stage ###    
             elif self.drive_towards:
@@ -275,7 +279,10 @@ class Controller:
                 else:
                     self.dealer_speed = self.max_speed/2
                     self.dealer_turn_rate = diff_angle * self.proportional_turn
-                    return f"Driving to Player {self.player_turns[self.player_turn]}, distance left: {round(distance)}"
+                    if not self.deal_middle_cards:
+                        return f"Driving to Player {self.player_turns[self.player_turn]}, distance left: {round(distance)}"
+                    else:
+                        return f"Driving to Middle cards, distance left: {round(distance)}"
                     
             ### Aligning normally to player stage ###
             elif self.align_normally:
@@ -288,7 +295,10 @@ class Controller:
                 else:
                     self.dealer_speed = 0
                     self.dealer_turn_rate = (diff_angle - self.normal_angle) * self.proportional_turn
-                    return f"Aligning normaly to Player {self.player_turns[self.player_turn]}, degrees left: {round(((diff_angle - self.normal_angle)) * (180/math.pi))}"
+                    if not self.deal_middle_cards:
+                        return f"Aligning normaly to Player {self.player_turns[self.player_turn]}, degrees left: {round(((diff_angle - self.normal_angle)) * (180/math.pi))}"
+                    else:
+                        return f"Aligning normaly to Middle card, deg left: {round(((diff_angle - self.normal_angle)) * (180/math.pi))} "
 
             ### Dealing stage ###
             elif self.deal_cards:
@@ -297,11 +307,18 @@ class Controller:
                     self.dealing = False
                     self.player_turn += 1
                     self.aligning = True
+                    if self.deal_middle_cards:
+                        self.middle_card_current_point += 1
+
                 else:
                     self.dealing = True
                     self.dealer_speed = 0
                     self.dealer_turn_rate = 0
-                    return f"Dealing cards to Player {self.player_turns[self.player_turn]}, finished in: {round(self.deal_time - (time() - self.started_dealing), 1)}"
+                    if not self.deal_middle_cards:
+                        return f"Dealing cards to Player {self.player_turns[self.player_turn]}, finished in: {round(self.deal_time - (time() - self.started_dealing), 1)}"
+                    else:
+                        return f"Dealing to middle cards, finished in: {round(self.deal_time - (time() - self.started_dealing), 1)}"
+
                 
                 
     def send_data_to_dealer(self):

@@ -124,10 +124,7 @@ class Window:
             self.update_players(ids, bounding_boxes)
             self.controller.update_players(self.player_finder.players)
 
-            if not self.controller.deal_middle_cards:
-                task = self.controller.update_data_to_dealer()
-            else:
-                task = "Dealing middle cards"
+            task = self.controller.update_data_to_dealer()
             self.dealer_task.set(task)
             
             if not self.deal_flip:
