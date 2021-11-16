@@ -4,11 +4,11 @@ import PIL.Image, PIL.ImageTk
 import tkinter as tk
 import tkinter.font as font
 import tkinter.messagebox as messagebox
-import time
 
 from .aruco import ArucoFinder
-from .players import PlayerFinder
+from .player_finder import PlayerFinder
 from .controller import Controller
+from .webcamera import Webcamera
 
 
 class Window:
@@ -268,23 +268,6 @@ class Window:
         self.controller.socket.close()
         self.window.destroy()
         
-
-class Webcamera:
-    def __init__(self):
-        self.cap = cv2.VideoCapture(0)
-        self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)  
-        self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-
-    def get_frame(self):
-        if self.cap.isOpened():
-            ret, frame = self.cap.read()
-            return (ret, frame)
-        else:
-            return None
-
-    def __del__(self):
-        if self.cap.isOpened():
-            self.cap.release()
 
 def main():
     Window(tk.Tk(), "Poker Robot V1.0")

@@ -1,6 +1,7 @@
 import time
 import numpy as np
 
+from .player import Player
 
 class PlayerFinder:
     TIMEOUT_TIME = 25
@@ -45,21 +46,3 @@ class PlayerFinder:
                 elif time.time() - self.players[player].last_seen >= self.TIMEOUT_TIME/2:
                     # print(f"Player {player} is about to time out.")
                     pass
-
-
-class Player:
-    def __init__(self, id, bounding_box, last_seen):
-        self.id = id
-        self.bounding_box = bounding_box
-        self.last_seen = last_seen
-
-        self.dealt_cards = False
-        self.is_dealer = id == 0
-
-        self.turn = 0
-
-    def update(self, bounding_box, last_seen):
-        self.bounding_box = bounding_box
-        self.last_seen = last_seen
-
-
