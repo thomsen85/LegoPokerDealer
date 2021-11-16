@@ -123,8 +123,11 @@ class Window:
         elif self.play_stage:
             self.update_players(ids, bounding_boxes)
             self.controller.update_players(self.player_finder.players)
-    
-            task = self.controller.update_data_to_dealer()
+
+            if not self.controller.deal_middle_cards:
+                task = self.controller.update_data_to_dealer()
+            else:
+                task = "Dealing middle cards"
             self.dealer_task.set(task)
             
             if not self.deal_flip:

@@ -170,7 +170,7 @@ class Controller:
         self.middle_card_y = 1080//2
         self.update_middle_cards = False
         self.middle_card_points = [(self.middle_card_x + (i*self.middle_card_spacing), self.middle_card_y)for i in range(-2, 3)]
-        self.middle_card_current_point = -2
+        self.middle_card_current_point = 0
         
         ### Socket Connection###
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -210,6 +210,8 @@ class Controller:
                 self.dealer = players[id]
             else:
                 self.players[id] = players[id]
+                
+        
 
     '''Dealer'''
     def connect_to_dealer(self):
@@ -232,10 +234,22 @@ class Controller:
         
     def update_data_to_dealer(self):
         if self.start:
-            next_player = self.players[self.player_turns[self.player_turn]]
+            if self.player_turn + 1 >= len(self.player_turns):
+                self.deal_middle_cards = True
+                next_player = {"bounding_box": [[self.middle_card_points[self.middle_card_current_point] for _ in range(4)]]}
+                self.middle_card_current_point += 1
+                
+                if self.middle_card_current_point > len(self.middle_card_points):
+                    self.middle_card_current_point = 0
+                    self.player_turn = 0 
+                    self.start = False
+                    self.deal_middle_cards = False
+            else:
+                next_player = self.players[self.player_turns[self.player_turn]]
+                
             diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, self.deal_area_front_shift)
             distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, self.deal_area_front_shift)
-            
+
             ### Aligning stage ###
             if self.aligning:
                 if abs(diff_angle) <= self.aligning_epsilon:
@@ -274,26 +288,13 @@ class Controller:
                 if time() - self.started_dealing >= self.deal_time:
                     self.deal_cards = False
                     self.dealing = False
-                    
-                    if self.player_turn + 1 == len(self.player_turns):
-                        self.player_turn = 0
-                        self.deal_middle_cards = True
-                    else:
-                        self.player_turn += 1
-                        self.aligning = True
+                    self.player_turn += 1
+                    self.aligning = True
                 else:
                     self.dealing = True
                     self.dealer_speed = 0
                     self.dealer_turn_rate = 0
                     return f"Dealing cards to Player {self.player_turns[self.player_turn]}, finished in: {round(self.deal_time - (time() - self.started_dealing), 1)}"
-                
-            elif self.deal_middle_cards:
-                pass
-                '''
-                next_player = {"bounding_box": self.middle_card_points[self.middle_card_current_point]}
-                diff_angle = Calculations.get_dealer_angle_offset_to_player(self.dealer, next_player, self.deal_area_front_shift)
-                distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, self.deal_area_front_shift)
-                '''
                 
                 
     def send_data_to_dealer(self):
