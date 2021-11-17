@@ -4,15 +4,11 @@ from app.window import main
 import sys
 
 def cases(arg):
-    if arg == "bluetooth":
-        #print("Testing bluetooth")
-        #bluetooth()
-        pass
-    elif arg == "start":
+    if arg == "start":
         main()
+        
     elif arg == "help":
         print("Argument options:")
-        print("\t- bluetooth")
         print("\t- start")
         print("\t- help")
 
