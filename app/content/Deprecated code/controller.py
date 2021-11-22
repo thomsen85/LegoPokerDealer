@@ -4,9 +4,9 @@ import socket
 from time import time
 
 from .player_finder import Player
-from .controller import Controller
+from .calculation import Calculations
 
-HOST = '169.254.31.29'  # local host
+HOST = 'localhost'  # local host
 PORT = 8070
 
 class Controller:
@@ -124,7 +124,7 @@ class Controller:
                 distance = Calculations.get_distance_between_dealer_and_player(self.dealer, next_player, 0)
                 
                 if self.middle_card_current_point > len(self.middle_card_points):
-                    self.middle_card_current_point = 0
+                    self.middle_card_current_point = 0  
                     self.player_turn = 0 
                     self.start = False
                     self.deal_middle_cards = False
