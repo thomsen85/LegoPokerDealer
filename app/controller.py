@@ -4,9 +4,9 @@ import socket
 from time import time
 
 from .player_finder import Player
-from .controller import Controller
+from .calculation import Calculations
 
-HOST = '169.254.31.29'  # local host
+HOST = 'localhost'  # local host
 PORT = 8070
 
 class Controller:
